@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quiz de Matemática Básica</title>
+
+<!-- Fontes: serifada de destaque (Fraunces) + sans para corpo (Work Sans) + mono para números (IBM Plex Mono) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================================
+     TOKENS DE DESIGN
+     Paleta inspirada em caderno quadriculado de matemática:
+     papel quente, tinta azul-marinho e um laranja-queimado de
+     destaque (evitando o terracota/creme "padrão de IA").
+     ============================================================ */
+  :root {
+    color-scheme: light;
+
+    --paper:        #FAF7EF;
+    --paper-line:   #E1D9C4;
+    --ink:          #1C2430;
+    --ink-soft:     #5B6472;
+    --card:         #FFFFFF;
+    --accent:       #C1440E;   /* laranja queimado - destaque geral */
+    --accent-soft:  #F3DFCF;
+    --teal:         #2D6E7E;   /* azul petróleo - segundo acento */
+
+    --correct-bg:     #E5F4E9;
+    --correct-border: #2E7D46;
+    --correct-text:   #1E5631;
+
+    --wrong-bg:     #FBE9E8;
+    --wrong-border: #C1272D;
+    --wrong-text:   #8C1C21;
+
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(28, 36, 48, 0.08);
+
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper:        #131A26;
+      --paper-line:   #26313F;
+      --ink:          #EDEFF2;
+      --ink-soft:     #A7B0BD;
+      --card:         #1B2431;
+      --accent:       #E2703A;
+      --accent-soft:  #3A2A1E;
+      --teal:         #5FA6B6;
+
+      --correct-bg:     #17301F;
+      --correct-border: #3E9C5B;
+      --correct-text:   #9BE3AE;
+
+      --wrong-bg:     #341518;
+      --wrong-border: #D6474C;
+      --wrong-text:   #F4A6A9;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper:        #131A26;
+    --paper-line:   #26313F;
+    --ink:          #EDEFF2;
+    --ink-soft:     #A7B0BD;
+    --card:         #1B2431;
+    --accent:       #E2703A;
+    --accent-soft:  #3A2A1E;
+    --teal:         #5FA6B6;
+
+    --correct-bg:     #17301F;
+    --correct-border: #3E9C5B;
+    --correct-text:   #9BE3AE;
+
+    --wrong-bg:     #341518;
+    --wrong-border: #D6474C;
+    --wrong-text:   #F4A6A9;
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: "Work Sans", -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    min-height: 100%;
+  }
+
+  h1, h2, h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    margin: 0 0 0.4em 0;
+    letter-spacing: -0.01em;
+  }
+
+  .mono {
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  a { color: var(--teal); }
+
+  /* ============================================================
+     LAYOUT GERAL
+     ============================================================ */
+  .app {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .brand .mark {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--accent);
+    transform: rotate(45deg);
+  }
+
+  .brand strong {
+    font-family: "Fraunces", serif;
+    font-size: 1.05rem;
+  }
+
+  .progress {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .progress b { color: var(--ink); }
+
+  /* ============================================================
+     TELAS (start / quiz / resultado)
+     ============================================================ */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fade-in 0.35s ease both; }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .screen.active { animation: none; }
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    border: 1px solid var(--paper-line);
+  }
+
+  /* ---- Tela inicial ---- */
+  .intro-kicker {
+    color: var(--teal);
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+  }
+
+  .intro-title {
+    font-size: clamp(1.7rem, 5vw, 2.3rem);
+    line-height: 1.1;
+  }
+
+  .intro-desc {
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 10px 0 22px;
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+
+  .name-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--paper-line);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 1rem;
+    margin-bottom: 18px;
+  }
+
+  .name-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 22px;
+    border-radius: 10px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: #FFFDF9;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .btn:hover { box-shadow: 0 6px 16px rgba(193, 68, 14, 0.28); }
+  .btn:active { transform: scale(0.98); }
+  .btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  .btn[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid var(--paper-line);
+  }
+
+  .btn-ghost:hover { border-color: var(--teal); box-shadow: none; }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+
+  .stat-row {
+    display: flex;
+    gap: 18px;
+    margin: 18px 0 4px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 110px;
+  }
+
+  .stat .num {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .stat .label { font-size: 0.78rem; color: var(--ink-soft); }
+
+  /* ---- Tela de pergunta ---- */
+  .q-count { font-size: 0.85rem; color: var(--teal); margin-bottom: 8px; }
+
+  .q-text {
+    font-size: clamp(1.15rem, 3vw, 1.4rem);
+    margin-bottom: 20px;
+    line-height: 1.35;
+  }
+
+  .options {
+    display: grid;
+    gap: 10px;
+    list-style: none;
+    margin: 0 0 6px;
+    padding: 0;
+  }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1.5px solid var(--paper-line);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 1rem;
+  }
+
+  .option .letter {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    color: var(--teal);
+    flex-shrink: 0;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--teal);
+  }
+
+  .option:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  .option:disabled { cursor: default; }
+
+  .option.is-correct {
+    background: var(--correct-bg);
+    border-color: var(--correct-border);
+    color: var(--correct-text);
+  }
+
+  .option.is-correct .letter { color: var(--correct-border); }
+
+  .option.is-wrong {
+    background: var(--wrong-bg);
+    border-color: var(--wrong-border);
+    color: var(--wrong-text);
+  }
+
+  .option.is-wrong .letter { color: var(--wrong-border); }
+
+  .explanation {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 10px;
+    border-left: 4px solid var(--teal);
+    background: var(--paper);
+    font-size: 0.96rem;
+    display: none;
+  }
+
+  .explanation.show { display: block; animation: fade-in 0.3s ease both; }
+
+  .explanation.verdict-correct { border-left-color: var(--correct-border); }
+  .explanation.verdict-wrong   { border-left-color: var(--wrong-border); }
+
+  .explanation .verdict {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .verdict-correct .verdict { color: var(--correct-text); }
+  .verdict-wrong .verdict   { color: var(--wrong-text); }
+
+  /* ---- Tela de resultado ---- */
+  .score-hero {
+    text-align: center;
+    padding: 10px 0 22px;
+    border-bottom: 1px dashed var(--paper-line);
+    margin-bottom: 22px;
+  }
+
+  .score-hero .big {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: clamp(2.6rem, 12vw, 3.6rem);
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .score-hero .msg {
+    margin-top: 10px;
+    color: var(--ink-soft);
+  }
+
+  /* ---- Ranking ---- */
+  .ranking-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .ranking-sub { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 14px; }
+
+  .ranking-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+
+  .ranking-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+  }
+
+  .ranking-row.me {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .ranking-row .pos {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+
+  .ranking-row.top .pos { color: var(--accent); }
+
+  .ranking-row .name {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ranking-row .score {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+  }
+
+  .ranking-row.empty {
+    color: var(--ink-soft);
+    font-style: italic;
+    justify-content: center;
+    display: flex;
+  }
+
+  .ranking-status {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    margin-top: 10px;
+  }
+
+  footer.foot {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    margin-top: 34px;
+  }
+
+  @media (max-width: 420px) {
+    .card { padding: 20px; }
+    .stat { min-width: 96px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Cabeçalho: marca + progresso (progresso só aparece durante o quiz) -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <strong>Quiz · Matemática Básica</strong>
+    </div>
+    <div class="progress mono" id="progress-indicator" hidden>
+      <b id="progress-current">1</b>/<span id="progress-total">10</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============================================================
+         TELA 1 — INÍCIO
+         ============================================================ -->
+    <section id="screen-start" class="screen active" aria-labelledby="intro-title">
+      <div class="card">
+        <p class="intro-kicker">Aquecimento numérico</p>
+        <h1 id="intro-title" class="intro-title">Quanto você lembra da matemática básica?</h1>
+        <p class="intro-desc">
+          10 perguntas sobre operações, frações, porcentagem e um pouco de geometria.
+          Depois de cada resposta você vê uma explicação de por que ela está certa ou errada.
+        </p>
+
+        <label class="field-label" for="player-name">Como podemos te chamar no ranking?</label>
+        <input
+          type="text"
+          id="player-name"
+          class="name-input"
+          maxlength="24"
+          placeholder="Seu nome ou apelido"
+          autocomplete="off"
+        >
+
+        <div class="btn-row">
+          <button class="btn" id="btn-start" type="button">Começar o quiz</button>
+          <button class="btn btn-ghost" id="btn-show-ranking" type="button">Ver ranking</button>
+        </div>
+
+        <!-- Ranking também fica visível a partir da tela inicial -->
+        <div id="start-ranking-wrap" style="margin-top:26px; display:none;">
+          <div class="ranking-title"><h3>Ranking geral</h3></div>
+          <p class="ranking-sub">As 10 melhores pontuações de todos que já jogaram por este link.</p>
+          <ol class="ranking-list" id="start-ranking-list"></ol>
+          <p class="ranking-status" id="start-ranking-status"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TELA 2 — PERGUNTA ATUAL
+         ============================================================ -->
+    <section id="screen-quiz" class="screen" aria-labelledby="q-text">
+      <div class="card">
+        <p class="q-count mono" id="q-count">Pergunta 1 de 10</p>
+        <h2 id="q-text" class="q-text">Enunciado da pergunta</h2>
+
+        <ul class="options" id="q-options" role="list"></ul>
+
+        <div class="explanation" id="q-explanation">
+          <span class="verdict" id="q-verdict">Correto!</span>
+          <span id="q-explanation-text"></span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" id="btn-next" type="button" disabled>Próxima pergunta</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TELA 3 — RESULTADO FINAL
+         ============================================================ -->
+    <section id="screen-result" class="screen" aria-labelledby="result-title">
+      <div class="card">
+        <div class="score-hero">
+          <h2 id="result-title" style="font-size:1rem; color:var(--ink-soft); font-weight:500; font-family:'Work Sans',sans-serif;">
+            Resultado de <span id="result-name">—</span>
+          </h2>
+          <div class="big mono" id="result-score">0/10</div>
+          <p class="msg" id="result-msg">Preparando seu resultado...</p>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat">
+            <div class="num mono" id="stat-percent">0%</div>
+            <div class="label">de aproveitamento</div>
+          </div>
+          <div class="stat">
+            <div class="num mono" id="stat-correct">0</div>
+            <div class="label">acertos</div>
+          </div>
+          <div class="stat">
+            <div class="num mono" id="stat-wrong">0</div>
+            <div class="label">erros</div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-bottom:26px;">
+          <button class="btn" id="btn-restart" type="button">Jogar novamente</button>
+        </div>
+
+        <!-- Ranking compartilhado -->
+        <div class="ranking-title"><h3>Ranking geral</h3></div>
+        <p class="ranking-sub">As 10 melhores pontuações de todos que já jogaram por este link.</p>
+        <ol class="ranking-list" id="result-ranking-list"></ol>
+        <p class="ranking-status" id="result-ranking-status">Carregando ranking...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    Feito para praticar matemática básica · pontuação salva automaticamente no ranking geral
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ==========================================================
+     1. BANCO DE PERGUNTAS
+     Cada pergunta tem: enunciado, 4 alternativas, o índice da
+     alternativa correta e uma explicação comentada que é exibida
+     assim que o usuário responde (acertando ou errando).
+     ========================================================== */
+  const QUESTIONS = [
+    {
+      question: "Quanto é 7 + 8 × 2?",
+      options: ["30", "23", "22", "15"],
+      correct: 1,
+      explanation: "Na ordem das operações, a multiplicação é feita antes da soma: 8 × 2 = 16, e depois 7 + 16 = 23. Quem soma primeiro (7 + 8 = 15 e depois × 2) chega a 30, que é o erro mais comum aqui."
+    },
+    {
+      question: "Quanto é 15 ÷ 3 + 2?",
+      options: ["3", "5", "7", "9"],
+      correct: 2,
+      explanation: "Divisão e multiplicação vêm antes da adição e subtração: 15 ÷ 3 = 5, e 5 + 2 = 7. Se você somar 3 + 2 antes de dividir, chega a um resultado errado."
+    },
+    {
+      question: "3/4 corresponde a quantos por cento?",
+      options: ["34%", "43%", "75%", "25%"],
+      correct: 2,
+      explanation: "Para transformar uma fração em porcentagem, multiplicamos por 100: (3 ÷ 4) × 100 = 75%. As opções 34% e 43% só embaralham os dígitos do numerador e denominador, sem calcular de fato."
+    },
+    {
+      question: "Um produto custa R$ 80 e está com 25% de desconto. Qual é o valor do desconto em reais?",
+      options: ["R$ 15", "R$ 20", "R$ 25", "R$ 60"],
+      correct: 1,
+      explanation: "25% de 80 é o mesmo que 80 ÷ 4, já que 25% equivale a 1/4. Isso dá R$ 20 de desconto. R$ 60 seria o valor final a pagar, não o desconto — por isso é uma alternativa que confunde as duas coisas."
+    },
+    {
+      question: "Qual é o perímetro de um quadrado com lado de 6 cm?",
+      options: ["12 cm", "24 cm", "36 cm", "6 cm"],
+      correct: 1,
+      explanation: "O perímetro do quadrado é a soma dos 4 lados iguais: 6 + 6 + 6 + 6 = 24 cm, ou 4 × 6. Quem responde 36 cm calculou a área (6 × 6) em vez do perímetro."
+    },
+    {
+      question: "Quanto é 2³ (dois elevado ao cubo)?",
+      options: ["6", "9", "5", "8"],
+      correct: 3,
+      explanation: "Potenciação não é multiplicar a base pelo expoente: 2³ significa 2 × 2 × 2 = 8. Quem responde 6 calculou 2 × 3 por engano."
+    },
+    {
+      question: "Se x + 5 = 12, qual é o valor de x?",
+      options: ["5", "6", "7", "17"],
+      correct: 2,
+      explanation: "Para isolar x, subtraímos 5 dos dois lados da equação: x = 12 − 5 = 7. Quem responde 17 inverteu a operação e somou em vez de subtrair."
+    },
+    {
+      question: "Qual fração é equivalente a 0,5?",
+      options: ["1/3", "1/2", "2/3", "1/4"],
+      correct: 1,
+      explanation: "0,5 significa 5 décimos, ou seja, 5/10, que simplificado (dividindo por 5) vira 1/2. 1/4 equivale a 0,25 e 1/3 é uma dízima (0,333...), então nenhuma das duas bate com 0,5."
+    },
+    {
+      question: "Qual é a média entre 4, 8 e 12?",
+      options: ["6", "7", "8", "9"],
+      correct: 2,
+      explanation: "A média é a soma dos valores dividida pela quantidade deles: (4 + 8 + 12) ÷ 3 = 24 ÷ 3 = 8. Esquecer de dividir pelo total de números é o erro mais comum nesse tipo de conta."
+    },
+    {
+      question: "Qual dos números abaixo é primo?",
+      options: ["9", "15", "17", "21"],
+      correct: 2,
+      explanation: "Um número primo só é divisível por 1 e por ele mesmo. 17 não tem outros divisores inteiros. Já 9 (3×3), 15 (3×5) e 21 (3×7) podem todos ser divididos por 3, então não são primos."
+    }
+  ];
+
+  /* ==========================================================
+     2. ESTADO DA APLICAÇÃO
+     ========================================================== */
+  const state = {
+    playerName: "",
+    currentIndex: 0,
+    correctCount: 0,
+    answered: false,
+    savedToRanking: false
+  };
+
+  /* ==========================================================
+     3. REFERÊNCIAS DE ELEMENTOS
+     ========================================================== */
+  const el = {
+    progressWrap: document.getElementById("progress-indicator"),
+    progressCurrent: document.getElementById("progress-current"),
+    progressTotal: document.getElementById("progress-total"),
+
+    screens: {
+      start: document.getElementById("screen-start"),
+      quiz: document.getElementById("screen-quiz"),
+      result: document.getElementById("screen-result")
+    },
+
+    nameInput: document.getElementById("player-name"),
+    btnStart: document.getElementById("btn-start"),
+    btnShowRanking: document.getElementById("btn-show-ranking"),
+    startRankingWrap: document.getElementById("start-ranking-wrap"),
+    startRankingList: document.getElementById("start-ranking-list"),
+    startRankingStatus: document.getElementById("start-ranking-status"),
+
+    qCount: document.getElementById("q-count"),
+    qText: document.getElementById("q-text"),
+    qOptions: document.getElementById("q-options"),
+    qExplanation: document.getElementById("q-explanation"),
+    qVerdict: document.getElementById("q-verdict"),
+    qExplanationText: document.getElementById("q-explanation-text"),
+    btnNext: document.getElementById("btn-next"),
+
+    resultName: document.getElementById("result-name"),
+    resultScore: document.getElementById("result-score"),
+    resultMsg: document.getElementById("result-msg"),
+    statPercent: document.getElementById("stat-percent"),
+    statCorrect: document.getElementById("stat-correct"),
+    statWrong: document.getElementById("stat-wrong"),
+    btnRestart: document.getElementById("btn-restart"),
+    resultRankingList: document.getElementById("result-ranking-list"),
+    resultRankingStatus: document.getElementById("result-ranking-status")
+  };
+
+  el.progressTotal.textContent = String(QUESTIONS.length);
+
+  /* ==========================================================
+     4. NAVEGAÇÃO ENTRE TELAS
+     ========================================================== */
+  function showScreen(name) {
+    Object.entries(el.screens).forEach(([key, node]) => {
+      node.classList.toggle("active", key === name);
+    });
+    el.progressWrap.hidden = name !== "quiz";
+  }
+
+  /* ==========================================================
+     5. TELA DE PERGUNTA
+     ========================================================== */
+  function renderQuestion() {
+    const q = QUESTIONS[state.currentIndex];
+    state.answered = false;
+
+    el.progressCurrent.textContent = String(state.currentIndex + 1);
+    el.qCount.textContent = "Pergunta " + (state.currentIndex + 1) + " de " + QUESTIONS.length;
+    el.qText.textContent = q.question;
+
+    el.qExplanation.classList.remove("show", "verdict-correct", "verdict-wrong");
+    el.btnNext.disabled = true;
+    el.btnNext.textContent = state.currentIndex === QUESTIONS.length - 1
+      ? "Ver resultado"
+      : "Próxima pergunta";
+
+    // Monta as alternativas como botões dentro de itens de lista
+    el.qOptions.innerHTML = "";
+    const letters = ["A", "B", "C", "D"];
+
+    q.options.forEach((optionText, index) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "option";
+      btn.setAttribute("data-index", String(index));
+      btn.innerHTML =
+        '<span class="letter">' + letters[index] + '</span><span>' + optionText + "</span>";
+      btn.addEventListener("click", () => handleAnswer(index, btn));
+      li.appendChild(btn);
+      el.qOptions.appendChild(li);
+    });
+
+    showScreen("quiz");
+  }
+
+  function handleAnswer(chosenIndex, chosenButton) {
+    if (state.answered) return; // impede responder duas vezes
+    state.answered = true;
+
+    const q = QUESTIONS[state.currentIndex];
+    const isCorrect = chosenIndex === q.correct;
+
+    if (isCorrect) state.correctCount += 1;
+
+    // Trava todas as alternativas e sinaliza certo/errado visualmente
+    const buttons = el.qOptions.querySelectorAll(".option");
+    buttons.forEach((btn) => {
+      btn.disabled = true;
+      const idx = Number(btn.getAttribute("data-index"));
+      if (idx === q.correct) {
+        btn.classList.add("is-correct");
+      } else if (idx === chosenIndex) {
+        btn.classList.add("is-wrong");
+      }
+    });
+
+    // Exibe a explicação comentada
+    el.qVerdict.textContent = isCorrect ? "Você acertou!" : "Não foi dessa vez.";
+    el.qExplanationText.textContent = q.explanation;
+    el.qExplanation.classList.add("show", isCorrect ? "verdict-correct" : "verdict-wrong");
+
+    el.btnNext.disabled = false;
+  }
+
+  function goToNextQuestion() {
+    if (state.currentIndex < QUESTIONS.length - 1) {
+      state.currentIndex += 1;
+      renderQuestion();
+    } else {
+      finishQuiz();
+    }
+  }
+
+  /* ==========================================================
+     6. TELA DE RESULTADO
+     ========================================================== */
+  function finishQuiz() {
+    const total = QUESTIONS.length;
+    const correct = state.correctCount;
+    const wrong = total - correct;
+    const percent = Math.round((correct / total) * 100);
+
+    el.resultName.textContent = state.playerName || "você";
+    el.resultScore.textContent = correct + "/" + total;
+    el.statPercent.textContent = percent + "%";
+    el.statCorrect.textContent = String(correct);
+    el.statWrong.textContent = String(wrong);
+
+    let message;
+    if (percent === 100) {
+      message = "Nota máxima! Você domina bem esses fundamentos.";
+    } else if (percent >= 70) {
+      message = "Muito bom! Só alguns detalhes para revisar.";
+    } else if (percent >= 40) {
+      message = "Bom começo — vale revisar os pontos que a explicação apontou.";
+    } else {
+      message = "Vale a pena repassar as explicações e tentar de novo.";
+    }
+    el.resultMsg.textContent = message;
+
+    showScreen("result");
+    saveScoreToRanking(correct, total, percent);
+  }
+
+  function restartQuiz() {
+    state.currentIndex = 0;
+    state.correctCount = 0;
+    state.answered = false;
+    state.savedToRanking = false;
+    showScreen("start");
+  }
+
+  /* ==========================================================
+     7. RANKING COMPARTILHADO (capacidade "db" do Artifact)
+     Guarda cada resultado em uma coleção "ranking" que é lida por
+     todos os visitantes da página — por isso funciona como um
+     placar coletivo, e não apenas local no navegador de cada um.
+     ========================================================== */
+  let dbHandle = null;   // referência da capacidade "db", ou null se indisponível
+  let dbReady = null;    // Promise de inicialização
+
+  function initDb() {
+    if (!dbReady) {
+      dbReady = (async () => {
+        try {
+          if (window.claude && typeof window.claude.use === "function") {
+            dbHandle = await window.claude.use("db");
+          }
+        } catch (err) {
+          dbHandle = null;
+        }
+        return dbHandle;
+      })();
+    }
+    return dbReady;
+  }
+
+  async function saveScoreToRanking(correct, total, percent) {
+    el.resultRankingStatus.textContent = "Carregando ranking...";
+    const db = await initDb();
+
+    if (!db) {
+      el.resultRankingStatus.textContent =
+        "Ranking geral indisponível neste momento. Sua pontuação ficou registrada só nesta sessão.";
+      renderRankingList(el.resultRankingList, []);
+      return;
+    }
+
+    try {
+      if (!state.savedToRanking) {
+        await db.collection("ranking").add({
+          name: state.playerName || "Anônimo",
+          score: correct,
+          total: total,
+          percent: percent,
+          createdAt: Date.now()
+        });
+        state.savedToRanking = true;
+      }
+    } catch (err) {
+      // Continua mesmo se salvar falhar — ainda mostramos o ranking existente
+    }
+
+    await loadRanking(el.resultRankingList, el.resultRankingStatus);
+  }
+
+  async function loadRanking(listEl, statusEl) {
+    statusEl.textContent = "Carregando ranking...";
+    const db = await initDb();
+
+    if (!db) {
+      statusEl.textContent = "Ranking geral indisponível neste momento.";
+      renderRankingList(listEl, []);
+      return;
+    }
+
+    try {
+      const snapshot = await db
+        .collection("ranking")
+        .orderBy("score", "desc")
+        .limit(10)
+        .get();
+
+      const docs = snapshot.docs || [];
+      const entries = docs.map((d) => d.data());
+      renderRankingList(listEl, entries);
+
+      statusEl.textContent = entries.length
+        ? "Mostrando as " + entries.length + " melhores pontuações registradas."
+        : "Ninguém pontuou ainda — seja o primeiro do ranking!";
+    } catch (err) {
+      statusEl.textContent = "Não foi possível carregar o ranking agora.";
+      renderRankingList(listEl, []);
+    }
+  }
+
+  function renderRankingList(listEl, entries) {
+    listEl.innerHTML = "";
+    const slots = 10; // o ranking sempre exibe no mínimo 10 posições
+
+    for (let i = 0; i < slots; i += 1) {
+      const li = document.createElement("li");
+      const entry = entries[i];
+
+      if (entry) {
+        li.className = "ranking-row" + (i < 3 ? " top" : "");
+        li.innerHTML =
+          '<span class="pos mono">' + (i + 1) + '</span>' +
+          '<span class="name">' + escapeHtml(entry.name || "Anônimo") + '</span>' +
+          '<span class="score mono">' + entry.score + '/' + entry.total + '</span>';
+      } else {
+        li.className = "ranking-row empty";
+        li.innerHTML = '<span class="pos mono">' + (i + 1) + '</span><span>— posição em aberto —</span>';
+      }
+      listEl.appendChild(li);
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /* ==========================================================
+     8. EVENTOS
+     ========================================================== */
+  el.btnStart.addEventListener("click", () => {
+    state.playerName = el.nameInput.value.trim();
+    state.currentIndex = 0;
+    state.correctCount = 0;
+    state.savedToRanking = false;
+    renderQuestion();
+  });
+
+  el.nameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") el.btnStart.click();
+  });
+
+  el.btnShowRanking.addEventListener("click", () => {
+    const isHidden = el.startRankingWrap.style.display === "none";
+    el.startRankingWrap.style.display = isHidden ? "block" : "none";
+    if (isHidden) loadRanking(el.startRankingList, el.startRankingStatus);
+  });
+
+  el.btnNext.addEventListener("click", goToNextQuestion);
+  el.btnRestart.addEventListener("click", restartQuiz);
+
+  // Inicializa a capacidade de banco de dados assim que a página carrega,
+  // sem bloquear a primeira renderização da tela inicial.
+  initDb();
+})();
+</script>
+</body>
+</html>
